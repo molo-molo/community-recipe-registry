@@ -1,6 +1,6 @@
 registries:
-  - name: community
-    description: Community registry for sparkrun
+  - name: m0l0
+    description: Fork of community registry for sparkrun
     recipes: recipes
     tuning: tuning
     benchmarks: benchmarking
