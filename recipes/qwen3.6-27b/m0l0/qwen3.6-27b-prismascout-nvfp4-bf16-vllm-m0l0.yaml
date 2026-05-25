@@ -1,0 +1,60 @@
+recipe_version: "1"
+model: rdtand/Qwen3.6-27B-PrismaSCOUT-Blackwell-NVFP4-BF16-vllm
+runtime: vllm
+container: ghcr.io/spark-arena/dgx-vllm-eugr-nightly:latest
+
+metadata:
+  description: |
+    Qwen3.5-27B via PrismaScout with DFlash speculative decoding (drafter z-lab/Qwen3.5-27B-DFlash, num_speculative_tokens=7) on DGX Spark GB10.
+  maintainer: "@m0l0"
+  model_params: 27B
+  model_dtype: nvfp4
+  kv_dtype: bfloat16
+  quantization: compressed-tensors
+  quant_bits: 5.31
+
+mods:
+  - mods/fix-qwen3.6-chat-template
+
+defaults:
+  port: 2000
+  host: 0.0.0.0
+  tensor_parallel: 1
+  pipeline_parallel: 1
+  gpu_memory_utilization: 0.6
+  max_model_len: 128K
+  max_num_batched_tokens: 16K
+  max_num_seqs: 10
+  served_model_name: qwen
+  default_chat_template_kwargs: '{"preserve_thinking":true}'
+  speculative_config: '{"method":"dflash","num_speculative_tokens":7,"model":"z-lab/Qwen3.5-27B-DFlash"}'
+
+env:
+  TORCH_CUDA_ARCH_LIST: "12.1a"
+  FLASHINFER_CUDA_ARCH_LIST: "12.1a"
+  VLLM_USE_FLASHINFER_MOE_FP4: "0"
+  VLLM_ENABLE_V1_MULTIPROCESSING: "0"
+  VLLM_SKIP_SPEC_STARTUP_DUMMY_RUN: "1"
+  VLLM_FORCE_DRAFT_LOAD_FORMAT: "safetensors"
+  PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
+
+command: |
+  vllm serve {model} \
+    --host {host} --port {port} \
+    --served-model-name {served_model_name} \
+    --tensor-parallel-size {tensor_parallel} \
+    --gpu-memory-utilization {gpu_memory_utilization} \
+    --max-model-len {max_model_len} \
+    --max-num-batched-tokens {max_num_batched_tokens} \
+    --max-num-seqs {max_num_seqs} \
+    --enforce-eager \
+    --trust-remote-code \
+    --load-format fastsafetensors \
+    --attention-backend flash_attn \
+    --enable-prefix-caching \
+    --enable-chunked-prefill \
+    --enable-auto-tool-choice \
+    --speculative-config '{speculative_config}' \
+    --chat-template fixed_chat_template.jinja \
+    --default-chat-template-kwargs '{default_chat_template_kwargs}'
+    
